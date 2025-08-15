@@ -1,3 +1,10 @@
+import { auth, db } from './firebase';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { collection, onSnapshot, setDoc, deleteDoc, doc } from 'firebase/firestore';
+
+const ADMIN_UID = lhZxHAGm3qUMMK4ex0z5gtNc0x23; // paste from Firebase
+
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X, Lock, LogOut, Edit3, ArrowLeft, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
@@ -25,33 +32,26 @@ const ADMIN_PASS = "CHANGE_ME_ADMIN_PASS"; // <-- set your own password
 
 const DEMO_LESSONS = /** @type{Lesson[]} */ ([
   {
-    id: "1755225161523-uas7km",
-    title: "Conversation 1 : កោះនរា • Koh Norea ",
-    level: "Beginner",
-    script: "Khmer",
-    description: "Sok and David are chatting about a popular place called Koh Norea in Phnom Penh.",
-    transcript: "សុខ៖ ដេវិតធ្លាប់ទៅលេងកោះនរាដែរឬទេ?\n\nដេវិត៖ បាទសុខ ខ្ញុំធ្លាប់ទៅលេងកោះនរាពីរបីដង។\n\nសុខ៖ ខ្ញុំគិតទៅលេងដែរ។ តើនៅកោះនរាមានអ្វីធ្វើខ្លះ?\n\nដេវិត៖ នៅកោះនរាមានអ្វីធ្វើច្រើនណាស់ ដូចជាទៅលេងសួនកម្សាន្តនិងដើរលេងនៅមាត់ទន្លេជាដើម។\n\nសុខ៖ អូ… ដូចជាសប្បាយណាស់។ តើខ្ញុំគួរជិះអ្វីទៅលឿនជាងគេ?\n\nដេវិត៖ ខ្ញុំគិតថាបើជិះតុកតុកលឿនជាងគេ ព្រោះពិបាករកកន្លែងចតណាស់។\n\nសុខ៖ ពិតជាមានមនុស្សចង់ទៅលេងច្រើនហើយអញ្ចឹង។\n\nដេវិត៖ ត្រូវហើយ។ កោះនរាជាកន្លែងក្មេងៗនិយមដើរលេង។\n\nសុខ៖ នៅឯណាដែរ?\n\nដេវិត៖ នៅចន្លោះកោះពេជ្រ និង ច្បារអំពៅ។\n\nសុខ៖ ពីនេះទៅ ជិះអស់រយះពេលប៉ុន្នាន?\n\nដេវិត៖ ជិះឡានប្រហែល៣០នាទី ហេីយជិះតុកតុកប្រហែល១៥នាទី។\n\nសុខ៖ អូរនៅមិនឆ្ងាយទេ។ ស្តាប់ទៅទំនងណាស់! អញ្ចឹងចុងសប្តាហ៍នេះខ្ញុំនឹងទៅលេងកោះនរា។\n\nSok: David, have you visited Koh Norea before?\n\nDavid: Yes, Sok. I have visited Koh Norea two or three times before.\n\nSok: I was thinking of visiting too. What is there to do at Koh Norea?\n\nDavid: There are lots of things to do at Koh Norea, such as the amusement park and walking along the riverside\n\nSok: Oh… It sounds so fun. What should I ride to get there quickest?\n\nDavid: I think riding a TukTuk would be the fastest because it is hard to find parking.\n\nSok: Then there must be a lot of people who want to visit.\n\nDavid: That’s right. Koh Norea is a popular place for young people to hang out.\n\nSok: Where is it?\n\nDavid: It’s between Koh Pich and Chbar Ampov.\n\nSok: How long does it take to get there from here?\n\nDavid: It takes around 30 minutes by car and takes around 15 minutes by Tuk Tuk.\n\nSok: Oh not that far. It sounds so exciting! In that case, I will visit Koh Norea this weekend.",
-    vocabulary: "- ទៅលេង = vist\n   - ទៅ = go\n   - លេង = play\n\n- សួនកម្សាន្ត = amusement park\n   - សួន = park\n   - កម្សាន្ត = amuse; enjoy\n\n- មាត់ទន្លេ = river side\n   - មាត់ = mouth\n   - ទន្លេ = river\n\n- សប្បាយ = fun; happy\n\n- ជិះ = ride\n\n- លឿន = fast\n\n- តុកតុក = Tuk Tuk\n\n- ពិបាក = hard\n\n- កន្លែងចត = parking spot\n   - កន្លែង = place\n   - ចត = park\n\n- ច្រើន = many; a lot\n\n- ក្មេងៗ = young people\n   - ក្មេង = young\n\n- ចន្លោះ = between\n\n- ឡាន = car\n\n- ឆ្ងាយ = far\n\n- ទំនង : a slang for “seem cool, sound good)\n\n- ចុងសប្តាហ៍ = weekends\n   - ចុង = end\n   - សប្តាហ៍ = week"
-  },
-  {
     id: "intro-phrases",
     title: "សួស្តី • Greetings",
-    level: "Beginner",
     script: "Khmer",
+    level: "Beginner",
     topic: "Phrases",
     description: "Common greetings and polite expressions.",
-    transcript: "សួស្តី (suosdei) – Hello \nជំរាបសួរ (chomreabsuor) – Formal hello \nអរគុណ (awkun) – Thank you",
-    audioUrl: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_0b7b2d2d2a.mp3?filename=vocal-loop-1-201402.mp3"
+    audioUrl: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_0b7b2d2d2a.mp3?filename=vocal-loop-1-201402.mp3",
+    transcript:
+      "សួស្តី (suosdei) – Hello | ជំរាបសួរ (chomreabsuor) – Formal hello | អរគុណ (awkun) – Thank you",
   },
   {
     id: "numbers-1-10",
     title: "លេខ ១–១០ • Numbers 1–10",
-    level: "Beginner",
     script: "Khmer",
+    level: "Beginner",
     topic: "Numbers",
     description: "Counting from 1 to 10 in Khmer.",
-    transcript: "១ (muoy) - 1\n២ (pii) - 2\n ៣ (bei) - 3\n៤ (buon) - 4\n៥ (pram) - 5\n៦ (pram muoy) - 6\n៧ (pram pii) - 7\n៨ (pram bei) - 8\n៩ (pram buon) - 9\n១០ (dap) - 10",
-    audioUrl: "https://cdn.pixabay.com/download/audio/2022/02/23/audio_16a2a2d2e2.mp3?filename=short-music-112188.mp3"
+    audioUrl: "https://cdn.pixabay.com/download/audio/2022/02/23/audio_16a2a2d2e2.mp3?filename=short-music-112188.mp3",
+    transcript:
+      "១ (muoy), ២ (pii), ៣ (bei), ៤ (buon), ៥ (pram), ៦ (pram muoy), ៧ (pram pii), ៨ (pram bei), ៩ (pram buon), ១០ (dap)",
   },
 ]);
 
@@ -139,7 +139,19 @@ export default function KhmerLearnerApp() {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
   const route = useHashRoute();
 
-  useEffect(() => saveLessons(lessons), [lessons]);
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      setIsAdmin(!!user && user.uid === ADMIN_UID);
+    });
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "lessons"), (snap) => {
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setLessons(rows.length ? rows : DEMO_LESSONS);
+    });
+    return unsub;
+  }, []);
 
   const filtered = useMemo(() => {
     return lessons.filter((L) => {
@@ -164,20 +176,15 @@ export default function KhmerLearnerApp() {
   function handlePause() { audioRef.current?.pause(); setIsPlaying(false); }
   function handleEnded() { setIsPlaying(false); }
 
-  function removeLesson(id) {
+  async function removeLesson(id) {
     if (!isAdmin) return;
-    setLessons((prev) => prev.filter((L) => L.id !== id));
+    await deleteDoc(doc(db, 'lessons', id));
     if (current?.id === id) { handlePause(); setCurrent(null); }
   }
 
-  function upsertLesson(updated /** @type{Lesson} */) {
-    setLessons((prev) => {
-      const i = prev.findIndex((x) => x.id === updated.id);
-      if (i === -1) return [updated, ...prev];
-      const copy = prev.slice();
-      copy[i] = updated;
-      return copy;
-    });
+  async function upsertLesson(updated) {
+    if (!isAdmin) return;
+    await setDoc(doc(db, 'lessons', updated.id), updated);
   }
 
   function exportJSON() {
@@ -189,16 +196,27 @@ export default function KhmerLearnerApp() {
     URL.revokeObjectURL(url);
   }
 
-  function enableAdmin() {
-    const input = prompt("Enter admin password");
-    if (input === ADMIN_PASS) {
-      localStorage.setItem(ADMIN_KEY, "1");
-      setIsAdmin(true);
-      alert("Admin mode enabled");
-    } else {
-      alert("Incorrect password");
-    }
+  // function enableAdmin() {
+  //   const input = prompt("Enter admin password");
+  //   if (input === ADMIN_PASS) {
+  //     localStorage.setItem(ADMIN_KEY, "1");
+  //     setIsAdmin(true);
+  //     alert("Admin mode enabled");
+  //   } else {
+  //     alert("Incorrect password");
+  //   }
+  // }
+
+  async function adminLogin() {
+    const email = prompt('Admin email');
+    const password = prompt('Password');
+    if (!email || !password) return;
+    await signInWithEmailAndPassword(auth, email, password);
   }
+  async function adminLogout() { await signOut(auth); }
+
+
+
   function disableAdmin() {
     localStorage.removeItem(ADMIN_KEY);
     setIsAdmin(false);
@@ -222,20 +240,24 @@ export default function KhmerLearnerApp() {
             {isAdmin ? (
               <>
                 {!isDetail && (
-                  <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
+                  <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Add lesson
+                  </Button>
                 )}
-                <Button onClick={exportJSON} className="flex items-center gap-2"><Download className="w-4 h-4"/>Export JSON</Button>
-                <Button onClick={disableAdmin} className="flex items-center gap-2" title="Disable admin">
-                  <LogOut className="w-4 h-4"/> Admin off
+                <Button onClick={exportJSON} className="flex items-center gap-2">
+                  <Download className="w-4 h-4" /> Export JSON
+                </Button>
+                <Button onClick={adminLogout} className="flex items-center gap-2" title="Logout admin">
+                  <LogOut className="w-4 h-4" /> Admin off
                 </Button>
               </>
             ) : (
-              <Button onClick={enableAdmin} className="flex items-center gap-2" title="Admin login">
-                <Lock className="w-4 h-4"/> Admin
+              <Button onClick={adminLogin} className="flex items-center gap-2" title="Admin login">
+                <Lock className="w-4 h-4" /> Admin
               </Button>
             )}
           </div>
-        </div>
+                  </div>
       </header>
 
       {isDetail ? (
