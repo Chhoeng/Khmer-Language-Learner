@@ -457,7 +457,17 @@ function AddLessonForm({ onAdd, initial }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (!title) return alert("Please add a title");
-    const L = { id, title, level, script, topic: topic || undefined, description: description || undefined, transcript: transcript || undefined, audioUrl: audioUrl || undefined };
+    const L = {
+      id,
+      title,
+      level,
+      script,
+      topic: topic || undefined,
+      description: description || undefined,
+      transcript: transcript || undefined,
+      vocabulary: vocabulary || undefined,
+      audioUrl: audioUrl || undefined,
+    };
     onAdd(L);
   }
 
