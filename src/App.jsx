@@ -258,12 +258,8 @@ export default function KhmerLearnerApp() {
                   <option>Beginner</option>
                   <option>Intermediate</option>
                   <option>Advanced</option>
-                </select>
-                <select
-                  className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
-                  value={script}
-                  onChange={(e) => setScript(e.target.value)}
-                >
+                
+
                 </select>
               </div>
             </div>
