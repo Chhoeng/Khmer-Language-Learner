@@ -71,8 +71,14 @@ const Button = ({ className = "", children, ...props }) => (
   </button>
 );
 
+// const Card = ({ className = "", children }) => (
+//   <div className={`rounded-2xl border bg-white/70 backdrop-blur p-4 shadow-sm ${className}`}>{children}</div>
+// );
+
 const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl border bg-white/70 backdrop-blur p-4 shadow-sm ${className}`}>{children}</div>
+  <div className={`rounded-2xl border bg-white/70 backdrop-blur p-4 shadow ${className}`}>
+    {children}
+  </div>
 );
 
 // ===== Local Storage Helpers =====
@@ -235,22 +241,26 @@ export default function KhmerLearnerApp() {
       ) : (
         <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6">
           <Card>
-            <div className="grid gap-3 md:grid-cols-3 md:gap-4 items-end">
-              <div className="md:col-span-2">
+            <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
+              {/* LEFT: big search bar */}
+              <div className="flex-1">
                 <label className="text-sm mb-1 block">Search lessons</label>
                 <div className="relative">
                   <Input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search by title, topic, or transcript..."
-                    className="pr-9"
+                    placeholder="Search by title, topic, or transcript…"
+                    className="pr-10 py-3 text-base rounded-3xl shadow-sm"
                   />
-                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60"/>
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
                 </div>
               </div>
-              <div className="flex gap-2">
+
+              {/* RIGHT: move Level filter to the right */}
+              <div className="md:w-56 md:ml-auto">
+                <label className="text-sm mb-1 block">Level</label>
                 <select
-                  className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
+                  className="w-full rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
                 >
@@ -258,12 +268,11 @@ export default function KhmerLearnerApp() {
                   <option>Beginner</option>
                   <option>Intermediate</option>
                   <option>Advanced</option>
-                
-
                 </select>
               </div>
             </div>
           </Card>
+
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((L) => (
@@ -343,7 +352,7 @@ export default function KhmerLearnerApp() {
       {/* Add/Edit Lesson Modal (admin only) */}
       {isAdmin && (showAdd || editLesson) && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
-          <Card className="w-full max-w-xl relative">
+          <Card className="w-full max-w-3xl relative">
             <button className="absolute right-3 top-3 p-1 rounded-lg hover:bg-slate-100" onClick={() => { setShowAdd(false); setEditLesson(null); }}>
               <X className="w-4 h-4"/>
             </button>
@@ -378,7 +387,7 @@ export default function KhmerLearnerApp() {
 function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
   if (!lesson) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-5xl px-4 py-10">
         <Button className="mb-4 flex items-center gap-2" onClick={onBack}><ArrowLeft className="w-4 h-4"/> Back</Button>
         <Card>
           <p>Lesson not found.</p>
@@ -387,7 +396,7 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
     );
   }
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 grid gap-4">
+    <main className="mx-auto max-w-5xl px-4 py-10 grid gap-4">
       <div className="flex items-center justify-between">
         <Button onClick={onBack} className="flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Back</Button>
         {isAdmin && (
@@ -410,6 +419,11 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
       </Card>
 
       <Card className="grid gap-3">
+        <h3 className="font-semibold">Vocabulary</h3>
+        <p className="whitespace-pre-wrap text-slate-800">{lesson.vocabulary || "No vocabulary added yet."}</p>
+      </Card>
+
+      <Card className="grid gap-3">
         <h3 className="font-semibold">Audio</h3>
         {lesson.audioUrl ? (
           <audio src={lesson.audioUrl} controls className="w-full" />
@@ -429,6 +443,7 @@ function AddLessonForm({ onAdd, initial }) {
   const [topic, setTopic] = useState(initial?.topic || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [transcript, setTranscript] = useState(initial?.transcript || "");
+  const [vocabulary, setVocabulary] = useState(initial?.vocabulary || "");
   const [audioUrl, setAudioUrl] = useState(initial?.audioUrl || "");
   const fileRef = useRef(/** @type{HTMLInputElement|null} */(null));
 
@@ -480,6 +495,10 @@ function AddLessonForm({ onAdd, initial }) {
       <div>
         <label className="text-sm mb-1 block">Transcript (optional)</label>
         <textarea className="w-full rounded-2xl border px-3 py-2 min-h-[120px]" value={transcript} onChange={(e)=>setTranscript(e.target.value)} placeholder="Paste Khmer text and transliteration here"/>
+      </div>
+      <div>
+        <label className="text-sm mb-1 block">Vocabulary (optional)</label>
+        <textarea className="w-full rounded-2xl border px-3 py-2 min-h-[80px]" value={vocabulary} onChange={(e)=>setVocabulary(e.target.value)} placeholder="List key words and meanings" />
       </div>
       <div>
         <label className="text-sm mb-1 block">Audio (optional)</label>
