@@ -295,7 +295,7 @@ export default function KhmerLearnerApp() {
                       <Globe className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold leading-tight truncate">{L.title}</h3>
+                      <h3 className="font-semibold leading-snug break-words whitespace-normal">{L.title}</h3>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <Badge>{L.level}</Badge>
                         <Badge>{L.script}</Badge>
