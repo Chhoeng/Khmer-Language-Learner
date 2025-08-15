@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X, Lock, LogOut } from "lucide-react";
+import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X, Lock, LogOut, Edit3, ArrowLeft, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 
 /**
- * SIMPLE ADMIN MODE (no real auth):
- * - Visitors CANNOT add or delete lessons (no buttons shown)
- * - You (admin) can enable edit mode by clicking the lock icon and entering a password
- * - Change ADMIN_PASS below to your own secret (it's only obscurity on a static site)
- *
- * For real authentication + shared data, use Firebase/Supabase later.
+ * Admin mode + Lesson detail pages (hash routing for GitHub Pages)
+ * - Visitors cannot add/edit/delete.
+ * - Admin can Add, Edit, Delete, Export.
+ * - Clicking a lesson opens a detail page at #/lesson/:id
  */
+
 const ADMIN_PASS = "CHANGE_ME_ADMIN_PASS"; // <-- set your own password
 
 /** @typedef {{
@@ -98,6 +97,22 @@ function saveLessons(lessons /** @type{Lesson[]} */) {
   } catch {}
 }
 
+// ===== Tiny hash router =====
+function useHashRoute() {
+  const [hash, setHash] = useState(window.location.hash || "#/");
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash || "#/");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash;
+}
+
+function goTo(path) {
+  window.location.hash = path; // like #/lesson/abc
+}
+
+// ===== Main App =====
 export default function KhmerLearnerApp() {
   const [lessons, setLessons] = useState(loadLessons);
   const [q, setQ] = useState("");
@@ -107,7 +122,9 @@ export default function KhmerLearnerApp() {
   const audioRef = useRef(/** @type{HTMLAudioElement|null} */(null));
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editLesson, setEditLesson] = useState(/** @type{Lesson|null} */(null));
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
+  const route = useHashRoute();
 
   useEffect(() => saveLessons(lessons), [lessons]);
 
@@ -131,16 +148,23 @@ export default function KhmerLearnerApp() {
       audioRef.current?.play().catch(() => {});
     }, 50);
   }
-  function handlePause() {
-    audioRef.current?.pause();
-    setIsPlaying(false);
-  }
+  function handlePause() { audioRef.current?.pause(); setIsPlaying(false); }
   function handleEnded() { setIsPlaying(false); }
 
   function removeLesson(id) {
-    if (!isAdmin) return; // safety
+    if (!isAdmin) return;
     setLessons((prev) => prev.filter((L) => L.id !== id));
     if (current?.id === id) { handlePause(); setCurrent(null); }
+  }
+
+  function upsertLesson(updated /** @type{Lesson} */) {
+    setLessons((prev) => {
+      const i = prev.findIndex((x) => x.id === updated.id);
+      if (i === -1) return [updated, ...prev];
+      const copy = prev.slice();
+      copy[i] = updated;
+      return copy;
+    });
   }
 
   function exportJSON() {
@@ -166,19 +190,27 @@ export default function KhmerLearnerApp() {
     localStorage.removeItem(ADMIN_KEY);
     setIsAdmin(false);
     setShowAdd(false);
+    setEditLesson(null);
   }
+
+  // routing
+  const [, path, maybeId] = (route || "#/").split("/"); // [#, '', 'lesson', ':id'] or similar
+  const isDetail = path === "lesson" && maybeId;
+  const lessonForDetail = isDetail ? lessons.find((l) => l.id === maybeId) || null : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-emerald-50">
       <header className="sticky top-0 z-20 backdrop-blur bg-white/60 border-b">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
           <BookOpen className="w-6 h-6" />
-          <h1 className="text-xl font-semibold">Khmer Learner</h1>
+          <h1 className="text-xl font-semibold cursor-pointer" onClick={() => goTo("/#/")}>Khmer Learner</h1>
           <Badge>Beta</Badge>
           <div className="ml-auto flex items-center gap-2">
             {isAdmin ? (
               <>
-                <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
+                {!isDetail && (
+                  <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
+                )}
                 <Button onClick={exportJSON} className="flex items-center gap-2"><Download className="w-4 h-4"/>Export JSON</Button>
                 <Button onClick={disableAdmin} className="flex items-center gap-2" title="Disable admin">
                   <LogOut className="w-4 h-4"/> Admin off
@@ -193,160 +225,218 @@ export default function KhmerLearnerApp() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6">
-        {/* Search & Filters */}
-        <Card>
-          <div className="grid gap-3 md:grid-cols-3 md:gap-4 items-end">
-            <div className="md:col-span-2">
-              <label className="text-sm mb-1 block">Search lessons</label>
-              <div className="relative">
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search by title, topic, or transcript..."
-                  className="pr-9"
-                />
-                <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60"/>
+      {isDetail ? (
+        <LessonDetail
+          lesson={lessonForDetail}
+          onBack={() => goTo("/#/")}
+          isAdmin={isAdmin}
+          onEdit={() => setEditLesson(lessonForDetail)}
+        />
+      ) : (
+        <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6">
+          <Card>
+            <div className="grid gap-3 md:grid-cols-3 md:gap-4 items-end">
+              <div className="md:col-span-2">
+                <label className="text-sm mb-1 block">Search lessons</label>
+                <div className="relative">
+                  <Input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Search by title, topic, or transcript..."
+                    className="pr-9"
+                  />
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 opacity-60"/>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                >
+                  <option value="All">All levels</option>
+                  <option>Beginner</option>
+                  <option>Intermediate</option>
+                  <option>Advanced</option>
+                </select>
+                <select
+                  className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
+                  value={script}
+                  onChange={(e) => setScript(e.target.value)}
+                >
+                  <option value="All">All scripts</option>
+                  <option>Khmer</option>
+                  <option>Latin</option>
+                </select>
               </div>
             </div>
-            <div className="flex gap-2">
-              <select
-                className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-              >
-                <option value="All">All levels</option>
-                <option>Beginner</option>
-                <option>Intermediate</option>
-                <option>Advanced</option>
-              </select>
-              <select
-                className="w-1/2 rounded-2xl border px-3 py-2 focus:ring focus:ring-indigo-200"
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-              >
-                <option value="All">All scripts</option>
-                <option>Khmer</option>
-                <option>Latin</option>
-              </select>
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Lesson List */}
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((L) => (
-            <motion.div key={L.id} initial={{opacity: 0, y: 8}} animate={{opacity:1, y:0}}>
-              <Card className="h-full flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-indigo-50 border">
-                    <Globe className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold leading-tight">{L.title}</h3>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      <Badge>{L.level}</Badge>
-                      <Badge>{L.script}</Badge>
-                      {L.topic && <Badge>{L.topic}</Badge>}
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((L) => (
+              <motion.div key={L.id} initial={{opacity: 0, y: 8}} animate={{opacity:1, y:0}}>
+                <Card className="h-full flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-indigo-50 border">
+                      <Globe className="w-5 h-5" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold leading-tight truncate">{L.title}</h3>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <Badge>{L.level}</Badge>
+                        <Badge>{L.script}</Badge>
+                        {L.topic && <Badge>{L.topic}</Badge>}
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="p-1.5 rounded-lg hover:bg-amber-50 border hover:border-amber-300"
+                          title="Edit"
+                          onClick={() => setEditLesson(L)}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-1.5 rounded-lg hover:bg-red-50 border hover:border-red-300"
+                          title="Remove"
+                          onClick={() => removeLesson(L.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {isAdmin && (
-                    <button
-                      className="ml-2 p-1.5 rounded-lg hover:bg-red-50 border hover:border-red-300"
-                      title="Remove"
-                      onClick={() => removeLesson(L.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  {L.description && (
+                    <p className="text-sm text-slate-600 line-clamp-3">{L.description}</p>
                   )}
-                </div>
-                {L.description && (
-                  <p className="text-sm text-slate-600">{L.description}</p>
-                )}
-                {L.transcript && (
-                  <details className="text-sm">
-                    <summary className="cursor-pointer select-none">Transcript</summary>
-                    <p className="mt-1 whitespace-pre-wrap text-slate-700">{L.transcript}</p>
-                  </details>
-                )}
-                <div className="mt-auto flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-sm opacity-70">
-                    <Music className="w-4 h-4"/> {L.audioUrl ? "Audio available" : "No audio"}
-                  </div>
-                  {L.audioUrl && (
-                    <Button className="flex items-center gap-2" onClick={() => handlePlay(L)}>
-                      <Play className="w-4 h-4"/> Play
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm opacity-70">
+                      <Music className="w-4 h-4"/> {L.audioUrl ? "Audio available" : "No audio"}
+                    </div>
+                    <Button className="flex items-center gap-2" onClick={() => goTo(`#/lesson/${L.id}`)}>
+                      Open <ExternalLink className="w-4 h-4"/>
                     </Button>
-                  )}
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </section>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </section>
+        </main>
+      )}
 
-        {/* Sticky Player */}
-        {current && (
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 w-[95%] md:w-[720px]"
-          >
-            <Card className="shadow-lg border-2">
-              <div className="flex items-center gap-3">
-                <Button onClick={isPlaying ? handlePause : () => handlePlay(current)} className="flex items-center gap-2">
-                  {isPlaying ? <Pause className="w-4 h-4"/> : <Play className="w-4 h-4"/>}
-                  {isPlaying ? "Pause" : "Play"}
-                </Button>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate font-medium">{current.title}</div>
-                  <div className="text-xs opacity-70">{current.level} • {current.script}</div>
-                </div>
-                <Button onClick={() => setCurrent(null)} title="Close" className="border-none">
-                  <X className="w-4 h-4"/>
-                </Button>
+      {/* Sticky Player on list page */}
+      {!isDetail && current && (
+        <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 w-[95%] md:w-[720px]">
+          <Card className="shadow-lg border-2">
+            <div className="flex items-center gap-3">
+              <Button onClick={isPlaying ? handlePause : () => handlePlay(current)} className="flex items-center gap-2">
+                {isPlaying ? <Pause className="w-4 h-4"/> : <Play className="w-4 h-4"/>}
+                {isPlaying ? "Pause" : "Play"}
+              </Button>
+              <div className="flex-1 min-w-0">
+                <div className="truncate font-medium">{current.title}</div>
+                <div className="text-xs opacity-70">{current.level} • {current.script}</div>
               </div>
-              <audio
-                ref={audioRef}
-                src={current.audioUrl}
-                onEnded={handleEnded}
-                className="w-full mt-3"
-                controls
-              />
-            </Card>
-          </motion.div>
-        )}
-      </main>
+              <Button onClick={() => setCurrent(null)} title="Close" className="border-none">
+                <X className="w-4 h-4"/>
+              </Button>
+            </div>
+            <audio ref={audioRef} src={current.audioUrl} onEnded={handleEnded} className="w-full mt-3" controls />
+          </Card>
+        </motion.div>
+      )}
 
-      {/* Add Lesson Modal (admin only) */}
-      {isAdmin && showAdd && (
+      {/* Add/Edit Lesson Modal (admin only) */}
+      {isAdmin && (showAdd || editLesson) && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
           <Card className="w-full max-w-xl relative">
-            <button className="absolute right-3 top-3 p-1 rounded-lg hover:bg-slate-100" onClick={() => setShowAdd(false)}>
+            <button className="absolute right-3 top-3 p-1 rounded-lg hover:bg-slate-100" onClick={() => { setShowAdd(false); setEditLesson(null); }}>
               <X className="w-4 h-4"/>
             </button>
-            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2"><Upload className="w-5 h-5"/> Add a new lesson</h2>
-            <AddLessonForm onAdd={(L) => { setLessons((prev) => [L, ...prev]); setShowAdd(false); }} />
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Upload className="w-5 h-5"/>
+              {editLesson ? "Edit lesson" : "Add a new lesson"}
+            </h2>
+            <AddLessonForm
+              initial={editLesson || undefined}
+              onAdd={(L) => {
+                if (editLesson) {
+                  upsertLesson(L);
+                } else {
+                  upsertLesson(L);
+                }
+                setShowAdd(false); setEditLesson(null);
+              }}
+            />
           </Card>
         </div>
       )}
 
       <footer className="mx-auto max-w-6xl px-4 py-10 text-sm opacity-70">
         <p>
-          Built for Khmer language learners. {isAdmin ? "Admin mode is ON. Visitors cannot edit." : "Visitors cannot edit lessons."} Data is stored locally in your browser.
+          Built for Khmer language learners. {isAdmin ? "Admin mode is ON. Visitors cannot edit." : "Visitors cannot edit lessons."} Data is stored locally in your browser. Use Export JSON to back up.
         </p>
       </footer>
     </div>
   );
 }
 
-function AddLessonForm({ onAdd }) {
-  const [title, setTitle] = useState("");
-  const [level, setLevel] = useState("Beginner");
-  const [script, setScript] = useState("Khmer");
-  const [topic, setTopic] = useState("");
-  const [description, setDescription] = useState("");
-  const [transcript, setTranscript] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
+function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
+  if (!lesson) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <Button className="mb-4 flex items-center gap-2" onClick={onBack}><ArrowLeft className="w-4 h-4"/> Back</Button>
+        <Card>
+          <p>Lesson not found.</p>
+        </Card>
+      </main>
+    );
+  }
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-10 grid gap-4">
+      <div className="flex items-center justify-between">
+        <Button onClick={onBack} className="flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Back</Button>
+        {isAdmin && (
+          <Button onClick={onEdit} className="flex items-center gap-2"><Edit3 className="w-4 h-4"/> Edit</Button>
+        )}
+      </div>
+      <Card className="grid gap-2">
+        <h2 className="text-2xl font-semibold">{lesson.title}</h2>
+        <div className="flex flex-wrap gap-2 mt-1">
+          <Badge>{lesson.level}</Badge>
+          <Badge>{lesson.script}</Badge>
+          {lesson.topic && <Badge>{lesson.topic}</Badge>}
+        </div>
+        {lesson.description && <p className="text-slate-700 mt-2">{lesson.description}</p>}
+      </Card>
+
+      <Card className="grid gap-3">
+        <h3 className="font-semibold">Transcript</h3>
+        <p className="whitespace-pre-wrap text-slate-800">{lesson.transcript || "No transcript yet."}</p>
+      </Card>
+
+      <Card className="grid gap-3">
+        <h3 className="font-semibold">Audio</h3>
+        {lesson.audioUrl ? (
+          <audio src={lesson.audioUrl} controls className="w-full" />
+        ) : (
+          <p className="text-slate-600">No audio for this lesson.</p>
+        )}
+      </Card>
+    </main>
+  );
+}
+
+function AddLessonForm({ onAdd, initial }) {
+  const [id, setId] = useState(initial?.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const [title, setTitle] = useState(initial?.title || "");
+  const [level, setLevel] = useState(initial?.level || "Beginner");
+  const [script, setScript] = useState(initial?.script || "Khmer");
+  const [topic, setTopic] = useState(initial?.topic || "");
+  const [description, setDescription] = useState(initial?.description || "");
+  const [transcript, setTranscript] = useState(initial?.transcript || "");
+  const [audioUrl, setAudioUrl] = useState(initial?.audioUrl || "");
   const fileRef = useRef(/** @type{HTMLInputElement|null} */(null));
 
   function handleFile(e) {
@@ -359,16 +449,7 @@ function AddLessonForm({ onAdd }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (!title) return alert("Please add a title");
-    const L = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title,
-      level,
-      script,
-      topic: topic || undefined,
-      description: description || undefined,
-      transcript: transcript || undefined,
-      audioUrl: audioUrl || undefined,
-    };
+    const L = { id, title, level, script, topic: topic || undefined, description: description || undefined, transcript: transcript || undefined, audioUrl: audioUrl || undefined };
     onAdd(L);
   }
 
@@ -405,12 +486,7 @@ function AddLessonForm({ onAdd }) {
       </div>
       <div>
         <label className="text-sm mb-1 block">Transcript (optional)</label>
-        <textarea
-          className="w-full rounded-2xl border px-3 py-2 min-h-[96px]"
-          value={transcript}
-          onChange={(e)=>setTranscript(e.target.value)}
-          placeholder="Paste Khmer text and transliteration here"
-        />
+        <textarea className="w-full rounded-2xl border px-3 py-2 min-h-[120px]" value={transcript} onChange={(e)=>setTranscript(e.target.value)} placeholder="Paste Khmer text and transliteration here"/>
       </div>
       <div>
         <label className="text-sm mb-1 block">Audio (optional)</label>
@@ -423,9 +499,9 @@ function AddLessonForm({ onAdd }) {
       </div>
       <div className="flex items-center justify-end gap-2 mt-2">
         <Button type="button" className="border-none" onClick={()=>{
-          setTitle(""); setTopic(""); setDescription(""); setTranscript(""); setAudioUrl(""); setLevel("Beginner"); setScript("Khmer");
+          setTitle(""); setTopic(""); setDescription(""); setTranscript(""); setAudioUrl(""); setLevel("Beginner"); setScript("Khmer"); setId(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
         }}>Clear</Button>
-        <Button type="submit" className="bg-indigo-600 text-white border-indigo-700">Save lesson</Button>
+        <Button type="submit" className="bg-indigo-600 text-white border-indigo-700">Save</Button>
       </div>
     </form>
   );
