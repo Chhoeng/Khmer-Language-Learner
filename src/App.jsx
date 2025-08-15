@@ -34,7 +34,7 @@
 
 // export default App
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X } from "lucide-react";
 import { motion } from "framer-motion";
 
