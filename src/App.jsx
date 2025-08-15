@@ -1,10 +1,3 @@
-import { auth, db } from './firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, onSnapshot, setDoc, deleteDoc, doc } from 'firebase/firestore';
-
-const ADMIN_UID = lhZxHAGm3qUMMK4ex0z5gtNc0x23; // paste from Firebase
-
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X, Lock, LogOut, Edit3, ArrowLeft, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
@@ -127,7 +120,20 @@ function goTo(path) {
 
 // ===== Main App =====
 export default function KhmerLearnerApp() {
-  const [lessons, setLessons] = useState(loadLessons);
+  const [lessons, setLessons] = useState(DEMO_LESSONS);
+  useEffect(() => {
+    // Load shared lessons.json from public folder on initial load
+    fetch('./lessons.json?ts=' + Date.now(), { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (Array.isArray(data) && data.length) {
+          setLessons(data)
+        }
+      })
+      .catch((err) => {
+        console.error('Could not load lessons.json:', err)
+      })
+  }, [])
   const [q, setQ] = useState("");
   const [level, setLevel] = useState(/** @type{Lesson["level"]|"All"} */("All"));
   const [script, setScript] = useState(/** @type{Lesson["script"]|"All"} */("All"));
@@ -139,19 +145,6 @@ export default function KhmerLearnerApp() {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
   const route = useHashRoute();
 
-  useEffect(() => {
-    return onAuthStateChanged(auth, (user) => {
-      setIsAdmin(!!user && user.uid === ADMIN_UID);
-    });
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "lessons"), (snap) => {
-      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setLessons(rows.length ? rows : DEMO_LESSONS);
-    });
-    return unsub;
-  }, []);
 
   const filtered = useMemo(() => {
     return lessons.filter((L) => {
@@ -176,15 +169,20 @@ export default function KhmerLearnerApp() {
   function handlePause() { audioRef.current?.pause(); setIsPlaying(false); }
   function handleEnded() { setIsPlaying(false); }
 
-  async function removeLesson(id) {
+  function removeLesson(id) {
     if (!isAdmin) return;
-    await deleteDoc(doc(db, 'lessons', id));
+    setLessons((prev) => prev.filter((L) => L.id !== id));
     if (current?.id === id) { handlePause(); setCurrent(null); }
   }
 
-  async function upsertLesson(updated) {
-    if (!isAdmin) return;
-    await setDoc(doc(db, 'lessons', updated.id), updated);
+  function upsertLesson(updated /** @type{Lesson} */) {
+    setLessons((prev) => {
+      const i = prev.findIndex((x) => x.id === updated.id);
+      if (i === -1) return [updated, ...prev];
+      const copy = prev.slice();
+      copy[i] = updated;
+      return copy;
+    });
   }
 
   function exportJSON() {
@@ -196,27 +194,16 @@ export default function KhmerLearnerApp() {
     URL.revokeObjectURL(url);
   }
 
-  // function enableAdmin() {
-  //   const input = prompt("Enter admin password");
-  //   if (input === ADMIN_PASS) {
-  //     localStorage.setItem(ADMIN_KEY, "1");
-  //     setIsAdmin(true);
-  //     alert("Admin mode enabled");
-  //   } else {
-  //     alert("Incorrect password");
-  //   }
-  // }
-
-  async function adminLogin() {
-    const email = prompt('Admin email');
-    const password = prompt('Password');
-    if (!email || !password) return;
-    await signInWithEmailAndPassword(auth, email, password);
+  function enableAdmin() {
+    const input = prompt("Enter admin password");
+    if (input === ADMIN_PASS) {
+      localStorage.setItem(ADMIN_KEY, "1");
+      setIsAdmin(true);
+      alert("Admin mode enabled");
+    } else {
+      alert("Incorrect password");
+    }
   }
-  async function adminLogout() { await signOut(auth); }
-
-
-
   function disableAdmin() {
     localStorage.removeItem(ADMIN_KEY);
     setIsAdmin(false);
@@ -240,24 +227,20 @@ export default function KhmerLearnerApp() {
             {isAdmin ? (
               <>
                 {!isDetail && (
-                  <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" /> Add lesson
-                  </Button>
+                  <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
                 )}
-                <Button onClick={exportJSON} className="flex items-center gap-2">
-                  <Download className="w-4 h-4" /> Export JSON
-                </Button>
-                <Button onClick={adminLogout} className="flex items-center gap-2" title="Logout admin">
-                  <LogOut className="w-4 h-4" /> Admin off
+                <Button onClick={exportJSON} className="flex items-center gap-2"><Download className="w-4 h-4"/>Export JSON</Button>
+                <Button onClick={disableAdmin} className="flex items-center gap-2" title="Disable admin">
+                  <LogOut className="w-4 h-4"/> Admin off
                 </Button>
               </>
             ) : (
-              <Button onClick={adminLogin} className="flex items-center gap-2" title="Admin login">
-                <Lock className="w-4 h-4" /> Admin
+              <Button onClick={enableAdmin} className="flex items-center gap-2" title="Admin login">
+                <Lock className="w-4 h-4"/> Admin
               </Button>
             )}
           </div>
-                  </div>
+        </div>
       </header>
 
       {isDetail ? (
