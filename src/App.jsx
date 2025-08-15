@@ -1,44 +1,17 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-// import './App.css'
-
-// function App() {
-//   const [count, setCount] = useState(0)
-
-//   return (
-//     <>
-//       <div>
-//         <a href="https://vite.dev" target="_blank">
-//           <img src={viteLogo} className="logo" alt="Vite logo" />
-//         </a>
-//         <a href="https://react.dev" target="_blank">
-//           <img src={reactLogo} className="logo react" alt="React logo" />
-//         </a>
-//       </div>
-//       <h1>Vite + React</h1>
-//       <div className="card">
-//         <button onClick={() => setCount((count) => count + 1)}>
-//           count is {count}
-//         </button>
-//         <p>
-//           Edit <code>src/App.jsx</code> and save to test HMR
-//         </p>
-//       </div>
-//       <p className="read-the-docs">
-//         Click on the Vite and React logos to learn more
-//       </p>
-//     </>
-//   )
-// }
-
-// export default App
-
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause, Upload, Search, BookOpen, Globe, Plus, Music, Download, Trash2, X, Lock, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 
-// ===== Utility Types =====
+/**
+ * SIMPLE ADMIN MODE (no real auth):
+ * - Visitors CANNOT add or delete lessons (no buttons shown)
+ * - You (admin) can enable edit mode by clicking the lock icon and entering a password
+ * - Change ADMIN_PASS below to your own secret (it's only obscurity on a static site)
+ *
+ * For real authentication + shared data, use Firebase/Supabase later.
+ */
+const ADMIN_PASS = "CHANGE_ME_ADMIN_PASS"; // <-- set your own password
+
 /** @typedef {{
  *  id: string;
  *  title: string;
@@ -51,7 +24,6 @@ import { motion } from "framer-motion";
  * }} Lesson
  */
 
-// ===== Demo Seed Data =====
 const DEMO_LESSONS = /** @type{Lesson[]} */ ([
   {
     id: "intro-phrases",
@@ -77,7 +49,7 @@ const DEMO_LESSONS = /** @type{Lesson[]} */ ([
   },
 ]);
 
-// ===== Small UI Primitives (no external UI kit) =====
+// ===== Small UI Primitives =====
 const Badge = ({ children }) => (
   <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs opacity-80">
     {children}
@@ -106,6 +78,7 @@ const Card = ({ className = "", children }) => (
 
 // ===== Local Storage Helpers =====
 const STORAGE_KEY = "khmer_lessons_v1";
+const ADMIN_KEY = "khmer_admin_enabled";
 
 function loadLessons() {
   try {
@@ -125,7 +98,6 @@ function saveLessons(lessons /** @type{Lesson[]} */) {
   } catch {}
 }
 
-// ===== Main App =====
 export default function KhmerLearnerApp() {
   const [lessons, setLessons] = useState(loadLessons);
   const [q, setQ] = useState("");
@@ -135,6 +107,7 @@ export default function KhmerLearnerApp() {
   const audioRef = useRef(/** @type{HTMLAudioElement|null} */(null));
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem(ADMIN_KEY) === "1");
 
   useEffect(() => saveLessons(lessons), [lessons]);
 
@@ -158,34 +131,41 @@ export default function KhmerLearnerApp() {
       audioRef.current?.play().catch(() => {});
     }, 50);
   }
-
   function handlePause() {
     audioRef.current?.pause();
     setIsPlaying(false);
   }
-
-  function handleEnded() {
-    setIsPlaying(false);
-  }
+  function handleEnded() { setIsPlaying(false); }
 
   function removeLesson(id) {
+    if (!isAdmin) return; // safety
     setLessons((prev) => prev.filter((L) => L.id !== id));
-    if (current?.id === id) {
-      handlePause();
-      setCurrent(null);
-    }
+    if (current?.id === id) { handlePause(); setCurrent(null); }
   }
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify(lessons, null, 2)], {
-      type: "application/json",
-    });
+    if (!isAdmin) return;
+    const blob = new Blob([JSON.stringify(lessons, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "khmer_lessons.json";
-    a.click();
+    a.href = url; a.download = "khmer_lessons.json"; a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function enableAdmin() {
+    const input = prompt("Enter admin password");
+    if (input === ADMIN_PASS) {
+      localStorage.setItem(ADMIN_KEY, "1");
+      setIsAdmin(true);
+      alert("Admin mode enabled");
+    } else {
+      alert("Incorrect password");
+    }
+  }
+  function disableAdmin() {
+    localStorage.removeItem(ADMIN_KEY);
+    setIsAdmin(false);
+    setShowAdd(false);
   }
 
   return (
@@ -196,8 +176,19 @@ export default function KhmerLearnerApp() {
           <h1 className="text-xl font-semibold">Khmer Learner</h1>
           <Badge>Beta</Badge>
           <div className="ml-auto flex items-center gap-2">
-            <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
-            <Button onClick={exportJSON} className="flex items-center gap-2"><Download className="w-4 h-4"/>Export JSON</Button>
+            {isAdmin ? (
+              <>
+                <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2"><Plus className="w-4 h-4"/>Add lesson</Button>
+                <Button onClick={exportJSON} className="flex items-center gap-2"><Download className="w-4 h-4"/>Export JSON</Button>
+                <Button onClick={disableAdmin} className="flex items-center gap-2" title="Disable admin">
+                  <LogOut className="w-4 h-4"/> Admin off
+                </Button>
+              </>
+            ) : (
+              <Button onClick={enableAdmin} className="flex items-center gap-2" title="Admin login">
+                <Lock className="w-4 h-4"/> Admin
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -259,13 +250,15 @@ export default function KhmerLearnerApp() {
                       {L.topic && <Badge>{L.topic}</Badge>}
                     </div>
                   </div>
-                  <button
-                    className="ml-2 p-1.5 rounded-lg hover:bg-red-50 border hover:border-red-300"
-                    title="Remove"
-                    onClick={() => removeLesson(L.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      className="ml-2 p-1.5 rounded-lg hover:bg-red-50 border hover:border-red-300"
+                      title="Remove"
+                      onClick={() => removeLesson(L.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
                 {L.description && (
                   <p className="text-sm text-slate-600">{L.description}</p>
@@ -324,8 +317,8 @@ export default function KhmerLearnerApp() {
         )}
       </main>
 
-      {/* Add Lesson Modal */}
-      {showAdd && (
+      {/* Add Lesson Modal (admin only) */}
+      {isAdmin && showAdd && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
           <Card className="w-full max-w-xl relative">
             <button className="absolute right-3 top-3 p-1 rounded-lg hover:bg-slate-100" onClick={() => setShowAdd(false)}>
@@ -338,7 +331,8 @@ export default function KhmerLearnerApp() {
       )}
 
       <footer className="mx-auto max-w-6xl px-4 py-10 text-sm opacity-70">
-        <p>Built for Khmer language learners. Data is stored locally in your browser. Use “Export JSON” to back up.
+        <p>
+          Built for Khmer language learners. {isAdmin ? "Admin mode is ON. Visitors cannot edit." : "Visitors cannot edit lessons."} Data is stored locally in your browser.
         </p>
       </footer>
     </div>
