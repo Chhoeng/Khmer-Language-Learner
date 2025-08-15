@@ -264,9 +264,6 @@ export default function KhmerLearnerApp() {
                   value={script}
                   onChange={(e) => setScript(e.target.value)}
                 >
-                  <option value="All">All scripts</option>
-                  <option>Khmer</option>
-                  <option>Latin</option>
                 </select>
               </div>
             </div>
