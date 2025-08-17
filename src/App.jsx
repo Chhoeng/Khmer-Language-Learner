@@ -366,7 +366,7 @@ export default function KhmerLearnerApp() {
       {/* Add/Edit Lesson Modal (admin only) */}
       {isAdmin && (showAdd || editLesson) && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4">
-          <Card className="w-full max-w-3xl relative">
+          <Card className="w-full max-w-3xl relative max-h-[90vh] overflow-y-auto p-6">
             <button className="absolute right-3 top-3 p-1 rounded-lg hover:bg-slate-100" onClick={() => { setShowAdd(false); setEditLesson(null); }}>
               <X className="w-4 h-4"/>
             </button>
