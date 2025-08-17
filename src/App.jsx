@@ -20,6 +20,8 @@ const ADMIN_PASS = "CHANGE_ME_ADMIN_PASS"; // <-- set your own password
  *  description?: string;
  *  audioUrl?: string;
  *  transcript?: string;
+ *  vocabulary?: string
+ *  exercises?: string;
  * }} Lesson
  */
 
@@ -443,6 +445,12 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
           <p className="text-slate-600">No audio for this lesson.</p>
         )}
       </Card>
+      <Card className="grid gap-3">
+        <h3 className="font-semibold">Exercises</h3>
+        <p className="whitespace-pre-wrap text-slate-800">
+          {lesson.exercises || "No exercises yet."}
+        </p>
+      </Card>
     </main>
   );
 }
@@ -456,6 +464,7 @@ function AddLessonForm({ onAdd, initial }) {
   const [description, setDescription] = useState(initial?.description || "");
   const [transcript, setTranscript] = useState(initial?.transcript || "");
   const [vocabulary, setVocabulary] = useState(initial?.vocabulary || "");
+  const [exercises, setExercises] = useState(initial?.exercises || "");
   const [audioUrl, setAudioUrl] = useState(initial?.audioUrl || "");
   const fileRef = useRef(/** @type{HTMLInputElement|null} */(null));
 
@@ -479,6 +488,7 @@ function AddLessonForm({ onAdd, initial }) {
       transcript: transcript || undefined,
       vocabulary: vocabulary || undefined,
       audioUrl: audioUrl || undefined,
+      exercises: exercises || undefined,
     };
     onAdd(L);
   }
@@ -530,6 +540,18 @@ function AddLessonForm({ onAdd, initial }) {
           <Button type="button" onClick={() => fileRef.current?.click()}>Upload</Button>
         </div>
         <p className="text-xs opacity-70 mt-1">Tip: paste an MP3 URL or upload a local file (local files won’t persist after refresh).</p>
+      </div>
+      <div>
+        <label className="text-sm mb-1 block">Exercises (optional)</label>
+        <textarea
+          className="w-full rounded-2xl border px-3 py-2 min-h-[120px]"
+          value={exercises}
+          onChange={(e) => setExercises(e.target.value)}
+          placeholder={`Example:
+              1) Translate: "Hello" → ______
+              2) Fill-in-the-blank: ខ្ញុំ ___ សាលា
+              3) Match: សួស្តី ↔︎ Hello`}
+        />
       </div>
       <div className="flex items-center justify-end gap-2 mt-2">
         <Button type="button" className="border-none" onClick={()=>{
