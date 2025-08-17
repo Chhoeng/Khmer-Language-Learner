@@ -433,11 +433,6 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
       </Card>
 
       <Card className="grid gap-3">
-        <h3 className="font-semibold">Vocabulary</h3>
-        <p className="whitespace-pre-wrap text-slate-800">{lesson.vocabulary || "No vocabulary added yet."}</p>
-      </Card>
-
-      <Card className="grid gap-3">
         <h3 className="font-semibold">Audio</h3>
         {lesson.audioUrl ? (
           <audio src={lesson.audioUrl} controls className="w-full" />
@@ -445,6 +440,13 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
           <p className="text-slate-600">No audio for this lesson.</p>
         )}
       </Card>
+      
+      <Card className="grid gap-3">
+        <h3 className="font-semibold">Vocabulary</h3>
+        <p className="whitespace-pre-wrap text-slate-800">{lesson.vocabulary || "No vocabulary added yet."}</p>
+      </Card>
+
+      
       <Card className="grid gap-3">
         <h3 className="font-semibold">Exercises</h3>
         <p className="whitespace-pre-wrap text-slate-800">
