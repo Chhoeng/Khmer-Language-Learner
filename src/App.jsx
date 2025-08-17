@@ -442,7 +442,13 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
 
       <Card className="grid gap-3">
         <h3 className="font-semibold">Audio</h3>
-        <audio controls src={toPublicUrl(lesson.audioUrl)} />
+        <div className="w-full">
+          <audio
+            controls
+            src={toPublicUrl(lesson.audioUrl)}  // keep your helper if you use it
+            className="block w-full"
+          />
+        </div>
       </Card>
 
       <Card className="grid gap-3">
