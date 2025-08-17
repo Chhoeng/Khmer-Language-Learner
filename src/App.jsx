@@ -120,6 +120,14 @@ function goTo(path) {
   window.location.hash = path; // like #/lesson/abc
 }
 
+function toPublicUrl(u) {
+  if (!u) return "";
+  if (/^https?:\/\//i.test(u)) return u; // already absolute
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  const rel  = u.replace(/^\.?\//, ""); // strip leading ./ or /
+  return `${base}/${rel}`;
+}
+
 // ===== Main App =====
 export default function KhmerLearnerApp() {
   const [lessons, setLessons] = useState(DEMO_LESSONS);
@@ -434,13 +442,9 @@ function LessonDetail({ lesson, onBack, isAdmin, onEdit }) {
 
       <Card className="grid gap-3">
         <h3 className="font-semibold">Audio</h3>
-        {lesson.audioUrl ? (
-          <audio src={lesson.audioUrl} controls className="w-full" />
-        ) : (
-          <p className="text-slate-600">No audio for this lesson.</p>
-        )}
+        <audio controls src={toPublicUrl(lesson.audioUrl)} />
       </Card>
-      
+
       <Card className="grid gap-3">
         <h3 className="font-semibold">Vocabulary</h3>
         <p className="whitespace-pre-wrap text-slate-800">{lesson.vocabulary || "No vocabulary added yet."}</p>
