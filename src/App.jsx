@@ -231,7 +231,7 @@ export default function KhmerLearnerApp() {
       <header className="sticky top-0 z-20 backdrop-blur bg-white/60 border-b">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
           <BookOpen className="w-6 h-6" />
-          <h1 className="text-xl font-semibold cursor-pointer" onClick={() => goTo("/#/")}>Khmer Learner</h1>
+          <h1 className="text-xl font-semibold cursor-pointer" onClick={() => goTo("/#/")}>Khmer Learners</h1>
           <Badge>Beta</Badge>
           <div className="ml-auto flex items-center gap-2">
             {isAdmin ? (
